@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+</head>
+<body>
+    <table>
+        <thead>
+            <tr>
+                <th>ID do Orçamento</th>
+                <th>Revisor Atuando</th>
+                <th>Categoria</th>
+                <th>Imobiliária</th>
+                <th>Valor</th>
+                <th>Avaliação do Prestador</th>
+                <th>GMV</th>
+                <th>Prestador</th>
+                <th>Telefone</th>
+                <th>Status</th>
+                <th>Abordar</th>
+                <th>Finalizar Atendimento</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data %}
+            <tr class="{% if row['Status'] == 'Reviewed' %}hidden{% endif %}">
+                <td><a href="{{ row['ID do Orçamento'] }}">{{ row['ID do Orçamento'] }}</a></td>
+                <td>
+                    <select class="revisor-atuando" data-id="{{ row['ID do Orçamento'] }}">
+                        <option value="Revisor 1" {% if row['Revisor Atuando'] == 'Revisor 1' %}selected{% endif %}>Revisor 1</option>
+                        <option value="Revisor 2" {% if row['Revisor Atuando'] == 'Revisor 2' %}selected{% endif %}>Revisor 2</option>
+                        <option value="Revisor 3" {% if row['Revisor Atuando'] == 'Revisor 3' %}selected{% endif %}>Revisor 3</option>
+                    </select>
+                </td>
+                <td>{{ row['Categoria'] }}</td>
+                <td>{{ row['Imobiliária'] }}</td>
+                <td>{{ row['Valor'] }}</td>
+                <td>{{ row['Avaliação do Prestador'] }}</td>
+                <td>{{ row['GMV'] }}</td>
+                <td>{{ row['Prestador'] }}</td>
+                <td>{{ row['Telefone'] }}</td>
+                <td>
+                    <select class="status" data-id="{{ row['ID do Orçamento'] }}">
+                        <option value="Pending" {% if row['Status'] == 'Pending' %}selected{% endif %}>Pending</option>
+                        <option value="Reviewed" {% if row['Status'] == 'Reviewed' %}selected{% endif %}>Reviewed</option>
+                        <option value="Canceled" {% if row['Status'] == 'Canceled' %}selected{% endif %}>Canceled</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="abordar" data-id="{{ row['ID do Orçamento'] }}">
+                        <option value="Yes" {% if row['Abordar'] == 'Yes' %}selected{% endif %}>Yes</option>
+                        <option value="No" {% if row['Abordar'] == 'No' %}selected{% endif %}>No</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="finalizar-atendimento" data-id="{{ row['ID do Orçamento'] }}">
+                        <option value="Completed" {% if row['Finalizar Atendimento'] == 'Completed' %}selected{% endif %}>Completed</option>
+                        <option value="Not Completed" {% if row['Finalizar Atendimento'] == 'Not Completed' %}selected{% endif %}>Not Completed</option>
+                    </select>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        $(document).ready(function() {
+            var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+            function updateCell(selector, column) {
+                $(selector).change(function() {
+                    var selectedValue = $(this).val();
+                    var idOrcamento = $(this).data('id');
+                    
+                    console.log(`Updating column ${column} for ID ${idOrcamento} with value ${selectedValue}`);  // Log para depuração
+
+                    $.ajax({
+                        url: '/update',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            column: column,
+                            value: selectedValue,
+                            id: idOrcamento
+                        }),
+                        success: function(response) {
+                            console.log(`Atualização bem-sucedida para ${column} com valor ${selectedValue}`);  // Log para depuração
+                        },
+                        error: function(error) {
+                            console.log(`Erro ao atualizar ${column} com valor ${selectedValue}:`, error);  // Log para depuração
+                        }
+                    });
+                });
+            }
+
+            updateCell('.revisor-atuando', 'Revisor Atuando');
+            updateCell('.status', 'Status');
+            updateCell('.abordar', 'Abordar');
+            updateCell('.finalizar-atendimento', 'Finalizar Atendimento');
+
+            socket.on('update_data', function(data) {
+                console.log('Received update_data:', data);  // Log para depuração
+
+                var row = $('select[data-id="' + data.id + '"]').closest('tr');
+                var selector = row.find('select.' + data.column.toLowerCase().replace(/\s+/g, '-'));
+
+                console.log('Atualizando visualmente o seletor:', selector);  // Log para verificar o seletor
+
+                selector.val(data.value);
+
+                if (data.column === 'Status' && data.value === 'Reviewed') {
+                    row.addClass('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
